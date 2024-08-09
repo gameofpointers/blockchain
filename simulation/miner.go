@@ -28,7 +28,7 @@ type Miner struct {
 	minerType     MinerKind
 	consensus     Consensus
 	sim           *Simulation
-	lock          sync.RWMutex
+	wg            sync.WaitGroup
 }
 
 func NewMiner(index int, sim *Simulation, broadcastFeed *event.Feed, kind MinerKind, consensus Consensus) *Miner {
@@ -48,16 +48,21 @@ func NewMiner(index int, sim *Simulation, broadcastFeed *event.Feed, kind MinerK
 }
 
 func (m *Miner) Start() {
+	defer m.sim.wg.Done()
+
 	m.bc = NewBlockchain()
 	m.currentHead = GenesisBlock()
 	m.newBlockSub = m.SubscribeMinedBlocksEvent()
+
+	m.wg.Add(2)
 	go m.ListenNewBlocks()
 	go m.MinedEvent()
+
+	m.wg.Wait()
+	fmt.Println("exiting the miner")
 }
 
 func (m *Miner) interruptMining() {
-	m.lock.Lock()
-	defer m.lock.Unlock()
 	if m.stopCh != nil {
 		close(m.stopCh)
 		m.stopCh = nil
@@ -70,6 +75,7 @@ func (m *Miner) Stop() {
 }
 
 func (m *Miner) ListenNewBlocks() {
+	defer m.wg.Done()
 	for {
 		select {
 		case newBlock := <-m.newBlockCh:
@@ -84,7 +90,7 @@ func (m *Miner) ListenNewBlocks() {
 				// new block
 				m.interruptMining()
 				m.SetCurrentHead(newBlock)
-				m.Mine()
+				go m.Mine()
 			}
 		case <-m.newBlockSub.Err():
 			return
@@ -93,14 +99,16 @@ func (m *Miner) ListenNewBlocks() {
 }
 
 func (m *Miner) MinedEvent() {
+	defer m.wg.Done()
 	for {
 		select {
 		case minedBlock := <-m.minedCh:
-			m.sim.totalHonestBlocks++
-			fmt.Println("Mined a new block", m.index, m.minerType, minedBlock.Hash(), minedBlock.Number())
 			if minedBlock.Number() > c_maxBlocks {
 				return
 			}
+
+			m.sim.totalHonestBlocks++
+			fmt.Println("Mined a new block", m.index, m.minerType, minedBlock.Hash(), minedBlock.Number())
 			minedBlock.SetTime(uint64(time.Now().UnixMilli()))
 			// Add block to the block database
 			m.bc.blocks.Add(minedBlock.Hash(), *CopyBlock(minedBlock))
@@ -110,23 +118,8 @@ func (m *Miner) MinedEvent() {
 			m.interruptMining()
 			m.SetCurrentHead(minedBlock)
 
-			// If we hit the max block, stop all miners of the same kind to stop
-			if minedBlock.Number() >= c_maxBlocks {
-				b := m.ConstructBlockchain()
-				if b == nil {
-					return
-				}
-				switch m.minerType {
-				case HonestMiner:
-					m.sim.honestBc = b
-				case AdversaryMiner:
-					m.sim.advBc = b
-				}
-				m.sim.Stop(m.minerType)
-			}
-
 			// Start mining the next block
-			m.Mine()
+			go m.Mine()
 
 			// In the case of the honest miner add a broadcast delay
 			if m.minerType == HonestMiner {

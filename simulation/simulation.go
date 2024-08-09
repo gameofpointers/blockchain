@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	c_maxBlocks              = 100
+	c_maxBlocks              = 10
 	c_maxIterations          = 100
 	c_honestDelta            = 140 // milliseconds
 	c_commonPrefixFailure    = 0.1
@@ -20,8 +20,6 @@ const (
 type Simulation struct {
 	honestMiners []*Miner
 	advMiners    []*Miner
-
-	stopMu sync.RWMutex
 
 	wg sync.WaitGroup
 
@@ -75,13 +73,17 @@ func (sim *Simulation) Start() {
 		sim.simStartTime = time.Now()
 
 		// Start the honest miners
-		sim.wg.Add(1)
 		for _, honestMiner := range sim.honestMiners {
-			honestMiner.Start()
+			sim.wg.Add(1)
+			go func(honestMiner *Miner) {
+				honestMiner.Start()
+			}(honestMiner)
 		}
-		sim.wg.Add(1)
 		for _, adversaryMiner := range sim.advMiners {
-			adversaryMiner.Start()
+			sim.wg.Add(1)
+			go func(adversaryMiner *Miner) {
+				adversaryMiner.Start()
+			}(adversaryMiner)
 		}
 
 		// Send the genesis block to mine
@@ -89,6 +91,10 @@ func (sim *Simulation) Start() {
 		sim.advBlockFeed.Send(GenesisBlock())
 
 		sim.wg.Wait()
+
+		sim.honestBc = sim.honestMiners[0].ConstructBlockchain()
+		sim.advBc = sim.advMiners[0].ConstructBlockchain()
+
 		// after this simulation is done, calculate a win chart
 		for i := 1; i <= c_maxBlocks; i++ {
 			honestBlock := sim.honestBc[i]
@@ -122,26 +128,4 @@ func (sim *Simulation) Start() {
 	fmt.Println("win counter", winCounter)
 	fmt.Println("g", g, "f", f, "k", k, "d", d)
 	fmt.Println("Simulation done")
-}
-
-func (sim *Simulation) Stop(minerType MinerKind) {
-	sim.stopMu.Lock()
-	defer sim.stopMu.Unlock()
-	defer sim.wg.Done()
-	if minerType == HonestMiner {
-		if len(sim.honestBc) == c_maxBlocks-1 {
-			return
-		}
-		for _, honestMiner := range sim.honestMiners {
-			sim.simDuration = time.Since(sim.simStartTime)
-			honestMiner.Stop()
-		}
-	} else if minerType == AdversaryMiner {
-		if len(sim.advBc) == c_maxBlocks-1 {
-			return
-		}
-		for _, adversaryMiner := range sim.advMiners {
-			adversaryMiner.Stop()
-		}
-	}
 }
