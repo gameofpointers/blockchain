@@ -24,7 +24,8 @@ func New() *Blake3pow {
 
 // Seal implements consensus.Engine, attempting to find a nonce that satisfies
 // the header's difficulty requirements.
-func (blake3pow *Blake3pow) Seal(header *Block, results chan<- *Block, stop <-chan struct{}) error {
+func (blake3pow *Blake3pow) Seal(header *Block, wg *sync.WaitGroup, results chan<- *Block, stop <-chan struct{}) error {
+	defer wg.Done()
 	// Create a runner and the multiple search threads it directs
 	abort := make(chan struct{})
 
