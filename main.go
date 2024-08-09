@@ -10,6 +10,6 @@ const (
 )
 
 func main() {
-	simulation := simulation.NewSimulation(simulation.Bitcoin, numHonestMiners, numAdversary)
+	simulation := simulation.NewSimulation(simulation.Poem, numHonestMiners, numAdversary)
 	simulation.Start()
 }

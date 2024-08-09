@@ -117,7 +117,7 @@ func (m *Miner) MinedEvent(wg *sync.WaitGroup) {
 			}
 
 			m.sim.totalHonestBlocks++
-			fmt.Println("Mined a new block", m.index, m.minerType, minedBlock.Hash(), minedBlock.Number())
+			fmt.Println("Mined a new block", m.index, m.minerType, minedBlock.Hash(), minedBlock.Number(), minedBlock.ParentWeight())
 			minedBlock.SetTime(uint64(time.Now().UnixMilli()))
 			// Add block to the block database
 			m.bc.blocks.Add(minedBlock.Hash(), *CopyBlock(minedBlock))

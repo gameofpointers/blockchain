@@ -117,5 +117,7 @@ search:
 func (Blake3pow *Blake3pow) IntrinsicDifficulty(block *Block) float64 {
 	// For now returning the difficulty, in the PoEM we need
 	// to calculate this value
-	return float64(block.Difficulty())
+	intrinsicS := new(big.Float).SetInt(new(big.Int).Div(big2e256, new(big.Int).SetBytes(block.Hash().Bytes())))
+	intrinsicFloat, _ := intrinsicS.Float64()
+	return math.Log2(intrinsicFloat)
 }
