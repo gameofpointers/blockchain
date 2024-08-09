@@ -98,7 +98,6 @@ func (m *Miner) ListenNewBlocks(wg *sync.WaitGroup) {
 				m.interruptMining()
 				m.SetCurrentHead(newBlock)
 
-				m.miningWg.Add(1)
 				m.Mine()
 			}
 		case <-m.newBlockSub.Err():
@@ -129,15 +128,13 @@ func (m *Miner) MinedEvent(wg *sync.WaitGroup) {
 			m.SetCurrentHead(minedBlock)
 
 			// Start mining the next block
-			m.miningWg.Add(1)
 			m.Mine()
 
-			// In the case of the honest miner add a broadcast delay
-			if m.minerType == HonestMiner {
-				time.Sleep(c_honestDelta * time.Millisecond)
-			}
-
 			go func() {
+				// In the case of the honest miner add a broadcast delay
+				if m.minerType == HonestMiner {
+					time.Sleep(c_honestDelta * time.Millisecond)
+				}
 				m.broadcastFeed.Send(minedBlock)
 			}()
 

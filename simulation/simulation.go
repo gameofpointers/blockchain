@@ -11,7 +11,7 @@ import (
 const (
 	c_maxBlocks              = 100
 	c_maxIterations          = 100
-	c_honestDelta            = 50 // milliseconds
+	c_honestDelta            = 3 // milliseconds
 	c_commonPrefixFailure    = 0.1
 	c_winningThreshold       = c_maxIterations * (1 - c_commonPrefixFailure)
 	c_honestListeningThreads = 10

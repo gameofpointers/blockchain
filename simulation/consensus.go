@@ -25,7 +25,6 @@ func New() *Blake3pow {
 // Seal implements consensus.Engine, attempting to find a nonce that satisfies
 // the header's difficulty requirements.
 func (blake3pow *Blake3pow) Seal(header *Block, wg *sync.WaitGroup, results chan<- *Block, stop <-chan struct{}) error {
-	defer wg.Done()
 	// Create a runner and the multiple search threads it directs
 	abort := make(chan struct{})
 
@@ -47,7 +46,9 @@ func (blake3pow *Blake3pow) Seal(header *Block, wg *sync.WaitGroup, results chan
 		blake3pow.mine(header, id, nonce, abort, locals)
 	}(0, uint64(randMining.Int63()))
 	// Wait until sealing is terminated or a nonce is found
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		var result *Block
 		select {
 		case <-stop:
