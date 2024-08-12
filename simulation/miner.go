@@ -29,6 +29,7 @@ type Miner struct {
 	consensus     Consensus
 	sim           *Simulation
 	miningWg      sync.WaitGroup
+	lock          sync.RWMutex
 }
 
 func NewMiner(index int, sim *Simulation, kind MinerKind, consensus Consensus) *Miner {
@@ -66,6 +67,8 @@ func (m *Miner) Start(startWg *sync.WaitGroup, broadcastFeed *event.Feed) {
 }
 
 func (m *Miner) interruptMining() {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	if m.stopCh != nil {
 		close(m.stopCh)
 		m.stopCh = nil
