@@ -123,7 +123,7 @@ func (sim *Simulation) Start() {
 				if c_poemGamma != 100 { // handling the non natural gamma case
 					gamma = float64(i) * (c_poemGamma + float64(1)/math.Log(2))
 				} else {
-					gamma = float64(i) * (math.Log2(float64(GenesisBlock().Difficulty())))
+					gamma = float64(i) * (math.Log2(float64(GenesisBlock().Difficulty())) + float64(1)/math.Log(2))
 				}
 				var honestBlock, advBlock *Block
 				for _, block := range sim.honestBc {
