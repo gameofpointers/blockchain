@@ -162,16 +162,6 @@ func (m *Miner) ConstructBlockchain() map[int]*Block {
 	return bc
 }
 
-func (m *Miner) CalculateBlockWeight(block *Block) float64 {
-	if m.consensus == Bitcoin {
-		return block.ParentWeight() + float64(block.Difficulty())
-	} else if m.consensus == Poem {
-		return block.ParentWeight() + m.engine.IntrinsicDifficulty(block)
-	} else {
-		panic("invalid consensus type")
-	}
-}
-
 func (m *Miner) SetCurrentHead(block *Block) {
 	// If we are trying to the current head again return
 	if m.currentHead.Hash() == block.Hash() {
@@ -184,8 +174,8 @@ func (m *Miner) SetCurrentHead(block *Block) {
 		return
 	}
 
-	currentHeadWeight := m.CalculateBlockWeight(m.currentHead)
-	newBlockWeight := m.CalculateBlockWeight(block)
+	currentHeadWeight := m.engine.CalculateBlockWeight(m.currentHead, m.consensus)
+	newBlockWeight := m.engine.CalculateBlockWeight(block, m.consensus)
 
 	if newBlockWeight > currentHeadWeight {
 		m.currentHead = CopyBlock(block)
@@ -194,7 +184,7 @@ func (m *Miner) SetCurrentHead(block *Block) {
 
 func (m *Miner) Mine() {
 	newPendingHeader := m.currentHead.PendingBlock()
-	newPendingHeader.SetParentWeight(m.CalculateBlockWeight(m.currentHead))
+	newPendingHeader.SetParentWeight(m.engine.CalculateBlockWeight(m.currentHead, m.consensus))
 
 	m.stopCh = make(chan struct{})
 	err := m.engine.Seal(newPendingHeader, &m.miningWg, m.minedCh, m.stopCh)

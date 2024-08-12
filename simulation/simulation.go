@@ -2,6 +2,7 @@ package simulation
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -9,12 +10,13 @@ import (
 )
 
 const (
-	c_maxBlocks              = 100
-	c_maxIterations          = 100
-	c_honestDelta            = 3 // milliseconds
-	c_commonPrefixFailure    = 0.1
-	c_winningThreshold       = c_maxIterations * (1 - c_commonPrefixFailure)
-	c_honestListeningThreads = 10
+	c_maxBlocks                      = 100
+	c_maxIterations                  = 100
+	c_honestDelta                    = 3 // milliseconds
+	c_commonPrefixFailure            = 0.1
+	c_winningThreshold               = c_maxIterations * (1 - c_commonPrefixFailure)
+	c_honestListeningThreads         = 10
+	c_poemGamma              float64 = 0
 )
 
 type Simulation struct {
@@ -32,6 +34,7 @@ type Simulation struct {
 	totalHonestSimDuration int64
 
 	consensus Consensus // Bitcoin or Poem
+	engine    *Blake3pow
 
 	honestBc map[int]*Block
 	advBc    map[int]*Block
@@ -48,6 +51,7 @@ func NewSimulation(consensus Consensus, numHonestMiners, numAdversary uint64) *S
 		totalHonestSimDuration: 0,
 		totalHonestBlocks:      0,
 		consensus:              consensus,
+		engine:                 New(),
 	}
 	for i := 0; i < int(numHonestMiners); i++ {
 		honestMiners = append(honestMiners, NewMiner(i, sim, HonestMiner, consensus))
@@ -102,21 +106,61 @@ func (sim *Simulation) Start() {
 		sim.honestBc = sim.honestMiners[0].ConstructBlockchain()
 		sim.advBc = sim.advMiners[0].ConstructBlockchain()
 
-		// after this simulation is done, calculate a win chart
-		for i := 1; i <= c_maxBlocks; i++ {
-			honestBlock := sim.honestBc[i]
-			adversaryBlock := sim.advBc[i]
-			if honestBlock.Time() < adversaryBlock.Time() {
-				winCounter[i-1]++
+		if sim.consensus == Bitcoin {
+			// after this simulation is done, calculate a win chart
+			for i := 1; i <= c_maxBlocks; i++ {
+				honestBlock := sim.honestBc[i]
+				adversaryBlock := sim.advBc[i]
+				if honestBlock.Time() < adversaryBlock.Time() {
+					winCounter[i-1]++
+				}
 			}
+		} else if sim.consensus == Poem {
+			// do a greedy process of finding the block that reached each
+			// poem threshold = i * (gamma + 1/ln(2))
+			for i := 1; i <= c_maxBlocks; i++ {
+				var gamma float64
+				if c_poemGamma != 100 { // handling the non natural gamma case
+					gamma = float64(i) * (c_poemGamma + float64(1)/math.Log(2))
+				} else {
+					gamma = float64(i) * (math.Log2(float64(GenesisBlock().Difficulty())))
+				}
+				var honestBlock, advBlock *Block
+				for _, block := range sim.honestBc {
+					if sim.engine.CalculateBlockWeight(block, sim.consensus) >= gamma {
+						honestBlock = block
+						break
+					}
+				}
+				for _, block := range sim.advBc {
+					if sim.engine.CalculateBlockWeight(block, sim.consensus) >= gamma {
+						advBlock = block
+						break
+					}
+				}
+				if advBlock == nil {
+					winCounter[i-1]++
+				}
+				if honestBlock == nil || advBlock == nil {
+					continue
+				}
+				// update the win counter
+				if honestBlock.Time() < advBlock.Time() {
+					winCounter[i-1]++
+				}
+			}
+		} else {
+			panic("simulation consensus not supported")
 		}
+
 		sim.totalHonestSimDuration += sim.simDuration.Milliseconds()
 
 		time.Sleep(3 * time.Second)
 	}
 	avgHonestBlocks := sim.totalHonestBlocks / c_maxIterations
 	avgHonestRoundTime := sim.totalHonestSimDuration / (c_maxIterations * c_honestDelta)
-	fmt.Println("Simulation Summary")
+	fmt.Println("Simulation Summary", sim.consensus)
+	fmt.Println("c_poemGamma", c_poemGamma)
 	fmt.Println("Honest Time Delta", c_honestDelta, "milliseconds")
 	fmt.Println("Average num of honest blocks", avgHonestBlocks)
 	fmt.Println("Average honest sim duration in Delta", avgHonestRoundTime)

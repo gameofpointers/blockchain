@@ -114,10 +114,30 @@ search:
 	}
 }
 
+func (Blake3pow *Blake3pow) CalculateBlockWeight(block *Block, consensus Consensus) float64 {
+	if consensus == Bitcoin {
+		return block.ParentWeight() + float64(block.Difficulty())
+	} else if consensus == Poem {
+		return block.ParentWeight() + Blake3pow.IntrinsicDifficulty(block)
+	} else {
+		panic("invalid consensus type")
+	}
+}
+
 func (Blake3pow *Blake3pow) IntrinsicDifficulty(block *Block) float64 {
+	// Genesis block has zero weight
+	if block.Hash() == GenesisBlock().Hash() {
+		return 0
+	}
 	// For now returning the difficulty, in the PoEM we need
 	// to calculate this value
 	intrinsicS := new(big.Float).SetInt(new(big.Int).Div(big2e256, new(big.Int).SetBytes(block.Hash().Bytes())))
 	intrinsicFloat, _ := intrinsicS.Float64()
-	return math.Log2(intrinsicFloat)
+
+	// shortcut to return the natural gamma calculation
+	if c_poemGamma == 100 {
+		return math.Log2(intrinsicFloat)
+	} else { // do the calculation based on the c_poemGamma
+		return c_poemGamma + (math.Log2(intrinsicFloat) - math.Log2(float64(block.Difficulty())))
+	}
 }
