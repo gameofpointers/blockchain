@@ -15,6 +15,10 @@ const (
 	AdversaryMiner
 )
 
+const (
+	newBlockChSize = 3
+)
+
 type Miner struct {
 	index         int
 	bc            *BlockDB
@@ -39,7 +43,7 @@ func NewMiner(index int, sim *Simulation, kind MinerKind, consensus Consensus) *
 		engine:      New(),
 		minedCh:     make(chan *Block),
 		stopCh:      make(chan struct{}),
-		newBlockCh:  make(chan *Block),
+		newBlockCh:  make(chan *Block, newBlockChSize),
 		minerType:   kind,
 		consensus:   consensus,
 		currentHead: GenesisBlock(),
@@ -53,9 +57,11 @@ func (m *Miner) Start(startWg *sync.WaitGroup, broadcastFeed *event.Feed) {
 	m.bc = NewBlockchain()
 	m.currentHead = GenesisBlock()
 	m.broadcastFeed = broadcastFeed
+	m.newBlockCh = make(chan *Block, newBlockChSize)
 	m.newBlockSub = m.SubscribeMinedBlocksEvent()
 
 	var wg sync.WaitGroup
+
 	wg.Add(2)
 	go m.ListenNewBlocks(&wg)
 	go m.MinedEvent(&wg)
@@ -81,13 +87,18 @@ func (m *Miner) Stop() {
 	// wait for miners to abort
 	m.miningWg.Wait()
 	m.newBlockSub.Unsubscribe()
+
+	// close the channel to kill all the worker newBlock listeners
+	close(m.newBlockCh)
 }
 
-func (m *Miner) ListenNewBlocks(wg *sync.WaitGroup) {
+func (m *Miner) newBlockListenerWorker(wg *sync.WaitGroup) {
 	defer wg.Done()
-	for {
+	for newBlock := range m.newBlockCh {
 		select {
-		case newBlock := <-m.newBlockCh:
+		case <-m.newBlockCh:
+			return
+		default:
 			if newBlock.Number() > c_maxBlocks {
 				m.Stop()
 				return
@@ -103,9 +114,15 @@ func (m *Miner) ListenNewBlocks(wg *sync.WaitGroup) {
 
 				m.Mine()
 			}
-		case <-m.newBlockSub.Err():
-			return
 		}
+	}
+}
+
+func (m *Miner) ListenNewBlocks(wg *sync.WaitGroup) {
+	defer wg.Done()
+	for i := 0; i < newBlockChSize; i++ {
+		wg.Add(1)
+		go m.newBlockListenerWorker(wg)
 	}
 }
 

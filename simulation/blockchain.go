@@ -71,7 +71,7 @@ type Block struct {
 func GenesisBlock() *Block {
 	return &Block{
 		number:       0,
-		difficulty:   1000,
+		difficulty:   5000,
 		parentWeight: 0,
 	}
 }
