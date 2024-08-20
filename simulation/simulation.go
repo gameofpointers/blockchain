@@ -16,7 +16,7 @@ const (
 	c_commonPrefixFailure            = 0.1
 	c_winningThreshold               = c_maxIterations * (1 - c_commonPrefixFailure)
 	c_honestListeningThreads         = 10
-	c_poemGamma              float64 = 0
+	c_poemGamma              float64 = 100
 )
 
 type Simulation struct {
@@ -125,16 +125,17 @@ func (sim *Simulation) Start() {
 				} else {
 					gamma = float64(i) * (math.Log2(float64(GenesisBlock().Difficulty())) + float64(1)/math.Log(2))
 				}
+
 				var honestBlock, advBlock *Block
-				for _, block := range sim.honestBc {
-					if sim.engine.CalculateBlockWeight(block, sim.consensus) >= gamma {
-						honestBlock = block
+				for i := 1; i <= len(sim.honestBc); i++ {
+					if sim.engine.CalculateBlockWeight(sim.honestBc[i], sim.consensus) >= gamma {
+						honestBlock = sim.honestBc[i]
 						break
 					}
 				}
-				for _, block := range sim.advBc {
-					if sim.engine.CalculateBlockWeight(block, sim.consensus) >= gamma {
-						advBlock = block
+				for j := 1; j <= len(sim.advBc); j++ {
+					if sim.engine.CalculateBlockWeight(sim.advBc[j], sim.consensus) >= gamma {
+						advBlock = sim.advBc[j]
 						break
 					}
 				}
