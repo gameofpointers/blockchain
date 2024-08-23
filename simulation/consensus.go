@@ -47,8 +47,8 @@ func (blake3pow *Blake3pow) Seal(header *Block, wg *sync.WaitGroup, results chan
 	}(0, uint64(randMining.Int63()))
 	// Wait until sealing is terminated or a nonce is found
 	wg.Add(1)
+	defer wg.Done()
 	go func() {
-		defer wg.Done()
 		var result *Block
 		select {
 		case <-stop:
