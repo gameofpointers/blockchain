@@ -119,6 +119,13 @@ func (sim *Simulation) Start() {
 			for i := 1; i <= c_maxBlocks; i++ {
 				honestBlock := sim.honestBc[i]
 				adversaryBlock := sim.advBc[i]
+				if honestBlock == nil {
+					continue
+				}
+				if adversaryBlock == nil {
+					winCounter[i-1]++
+					continue
+				}
 				if honestBlock.Time() < adversaryBlock.Time() {
 					winCounter[i-1]++
 				}
