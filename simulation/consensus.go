@@ -44,7 +44,7 @@ func (blake3pow *Blake3pow) Seal(header *Block, wg *sync.WaitGroup, results chan
 	pend.Add(1)
 	go func(id int, nonce uint64) {
 		defer pend.Done()
-		blake3pow.mine(header, id, nonce, abort, locals)
+		blake3pow.mine(header, nonce, abort, locals)
 	}(0, uint64(randMining.Int63()))
 	// Wait until sealing is terminated or a nonce is found
 	wg.Add(1)
@@ -71,7 +71,7 @@ func (blake3pow *Blake3pow) Seal(header *Block, wg *sync.WaitGroup, results chan
 
 // mine is the actual proof-of-work miner that searches for a nonce starting from
 // seed that results in correct final header difficulty.
-func (blake3pow *Blake3pow) mine(header *Block, id int, seed uint64, abort chan struct{}, found chan *Block) {
+func (blake3pow *Blake3pow) mine(header *Block, seed uint64, abort chan struct{}, found chan *Block) {
 	// Extract some data from the header
 	var (
 		target = new(big.Int).Div(big2e256, big.NewInt(int64(header.Difficulty())))

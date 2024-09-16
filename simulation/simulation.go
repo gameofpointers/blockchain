@@ -12,7 +12,6 @@ import (
 const (
 	c_maxBlocks                      = 100
 	c_maxIterations                  = 100
-	c_honestDelta                    = 20 // milliseconds
 	c_commonPrefixFailure            = 0.1
 	c_winningThreshold               = c_maxIterations * (1 - c_commonPrefixFailure)
 	c_honestListeningThreads         = 10
@@ -41,9 +40,11 @@ type Simulation struct {
 
 	honestAttempts int64
 	advAttempts    int64
+
+	honestDelta int64
 }
 
-func NewSimulation(consensus Consensus, numHonestMiners, numAdversary uint64) *Simulation {
+func NewSimulation(consensus Consensus, numHonestMiners, numAdversary uint64, honestDelta int64) *Simulation {
 	// Create miiners and adversary
 	honestMiners := make([]*Miner, 0)
 	advMiners := make([]*Miner, 0)
@@ -57,14 +58,15 @@ func NewSimulation(consensus Consensus, numHonestMiners, numAdversary uint64) *S
 		engine:                 New(),
 		honestAttempts:         0,
 		advAttempts:            0,
+		honestDelta:            honestDelta,
 	}
 	for i := 0; i < int(numHonestMiners); i++ {
-		honestMiners = append(honestMiners, NewMiner(i, sim, HonestMiner, consensus))
+		honestMiners = append(honestMiners, NewMiner(i, sim, HonestMiner, honestDelta, consensus))
 	}
 	sim.honestMiners = honestMiners
 
 	for i := 0; i < int(numAdversary); i++ {
-		advMiners = append(advMiners, NewMiner(i, sim, AdversaryMiner, consensus))
+		advMiners = append(advMiners, NewMiner(i, sim, AdversaryMiner, honestDelta, consensus))
 	}
 	sim.advMiners = advMiners
 	return sim
@@ -175,10 +177,10 @@ func (sim *Simulation) Start() {
 		time.Sleep(3 * time.Second)
 	}
 	avgHonestBlocks := sim.totalHonestBlocks / c_maxIterations
-	avgHonestRoundTime := sim.totalHonestSimDuration / (c_maxIterations * c_honestDelta)
+	avgHonestRoundTime := sim.totalHonestSimDuration / (c_maxIterations * sim.honestDelta)
 	fmt.Println("Simulation Summary", sim.consensus)
 	fmt.Println("c_poemGamma", c_poemGamma)
-	fmt.Println("Honest Time Delta", c_honestDelta, "milliseconds")
+	fmt.Println("Honest Time Delta", sim.honestDelta, "milliseconds")
 	fmt.Println("Average num of honest blocks", avgHonestBlocks)
 	fmt.Println("Average honest sim duration in Delta", avgHonestRoundTime)
 

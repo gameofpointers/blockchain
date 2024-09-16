@@ -34,9 +34,10 @@ type Miner struct {
 	sim           *Simulation
 	miningWg      sync.WaitGroup
 	lock          sync.RWMutex
+	honestDelta   int64
 }
 
-func NewMiner(index int, sim *Simulation, kind MinerKind, consensus Consensus) *Miner {
+func NewMiner(index int, sim *Simulation, kind MinerKind, honestDelta int64, consensus Consensus) *Miner {
 	return &Miner{
 		index:       index,
 		bc:          NewBlockchain(),
@@ -48,6 +49,7 @@ func NewMiner(index int, sim *Simulation, kind MinerKind, consensus Consensus) *
 		consensus:   consensus,
 		currentHead: GenesisBlock(),
 		sim:         sim,
+		honestDelta: honestDelta,
 	}
 }
 
@@ -171,7 +173,7 @@ func (m *Miner) MinedEvent(wg *sync.WaitGroup) {
 			go func() {
 				// In the case of the honest miner add a broadcast delay
 				if m.minerType == HonestMiner {
-					time.Sleep(c_honestDelta * time.Millisecond)
+					time.Sleep(time.Duration(m.honestDelta) * time.Millisecond)
 				}
 				m.broadcastFeed.Send(minedBlock)
 			}()
