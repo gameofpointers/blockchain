@@ -14,7 +14,8 @@ var (
 )
 
 type Blake3pow struct {
-	lock sync.Mutex
+	lock     sync.Mutex
+	attempts int64
 }
 
 func New() *Blake3pow {
@@ -95,7 +96,8 @@ search:
 			if (attempts % (1 << 15)) == 0 {
 				attempts = 0
 			}
-			time.Sleep(1 * time.Millisecond)
+			blake3pow.attempts++
+			time.Sleep(5 * time.Millisecond)
 			copyHeader := CopyBlock(header)
 			// Compute the PoW value of this nonce
 			copyHeader.SetNonce(EncodeNonce(nonce))

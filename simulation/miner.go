@@ -59,6 +59,7 @@ func (m *Miner) Start(startWg *sync.WaitGroup, broadcastFeed *event.Feed) {
 	m.broadcastFeed = broadcastFeed
 	m.newBlockCh = make(chan *Block, newBlockChSize)
 	m.newBlockSub = m.SubscribeMinedBlocksEvent()
+	m.engine.attempts = 0
 
 	var wg sync.WaitGroup
 
@@ -83,7 +84,24 @@ func (m *Miner) interruptMining() {
 
 func (m *Miner) Stop() {
 	m.interruptMining()
-	m.sim.simDuration = time.Since(m.sim.simStartTime)
+
+	if m.minerType == HonestMiner {
+		m.sim.honestAttempts += m.engine.attempts
+	} else if m.minerType == AdversaryMiner {
+		m.sim.advAttempts += m.engine.attempts
+	}
+
+	if m.minerType == HonestMiner {
+		// Since we dont know when each of the miner stops the execution
+		// we have to pick the lowest sim duration
+		minerSimDuration := time.Since(m.sim.simStartTime)
+		if m.sim.simDuration == 0 {
+			m.sim.simDuration = minerSimDuration
+		} else if minerSimDuration < m.sim.simDuration {
+			m.sim.simDuration = minerSimDuration
+		}
+	}
+
 	// wait for miners to abort
 	m.miningWg.Wait()
 	m.newBlockSub.Unsubscribe()

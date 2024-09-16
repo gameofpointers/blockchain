@@ -5,11 +5,11 @@ import (
 )
 
 const (
-	numHonestMiners uint64 = 38
-	numAdversary    uint64 = 12
+	numHonestMiners uint64 = 19
+	numAdversary    uint64 = 11
 )
 
 func main() {
-	simulation := simulation.NewSimulation(simulation.Poem, numHonestMiners, numAdversary)
+	simulation := simulation.NewSimulation(simulation.Bitcoin, numHonestMiners, numAdversary)
 	simulation.Start()
 }

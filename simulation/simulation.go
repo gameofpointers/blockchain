@@ -38,6 +38,9 @@ type Simulation struct {
 
 	honestBc map[int]*Block
 	advBc    map[int]*Block
+
+	honestAttempts int64
+	advAttempts    int64
 }
 
 func NewSimulation(consensus Consensus, numHonestMiners, numAdversary uint64) *Simulation {
@@ -52,6 +55,8 @@ func NewSimulation(consensus Consensus, numHonestMiners, numAdversary uint64) *S
 		totalHonestBlocks:      0,
 		consensus:              consensus,
 		engine:                 New(),
+		honestAttempts:         0,
+		advAttempts:            0,
 	}
 	for i := 0; i < int(numHonestMiners); i++ {
 		honestMiners = append(honestMiners, NewMiner(i, sim, HonestMiner, consensus))
@@ -68,6 +73,9 @@ func NewSimulation(consensus Consensus, numHonestMiners, numAdversary uint64) *S
 func (sim *Simulation) Start() {
 	winCounter := make([]int, c_maxBlocks)
 	for i := 0; i < c_maxIterations; i++ {
+		sim.honestAttempts = 0
+		sim.advAttempts = 0
+		sim.simDuration = 0
 		fmt.Println("Iteration", i)
 
 		var honestBlockFeed event.Feed
@@ -155,6 +163,7 @@ func (sim *Simulation) Start() {
 		}
 
 		sim.totalHonestSimDuration += sim.simDuration.Milliseconds()
+		fmt.Println("Honest Iteration time", sim.simDuration.Seconds(), "secs")
 
 		time.Sleep(3 * time.Second)
 	}
